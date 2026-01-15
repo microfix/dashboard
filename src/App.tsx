@@ -13,7 +13,7 @@ function App() {
   const handleSetupDb = async () => {
     setSetupStatus({ type: 'loading', message: 'Opsætter database...' });
     try {
-      const response = await fetch('http://localhost:3001/api/setup-db', {
+      const response = await fetch('/api/setup-db', {
         method: 'POST',
       });
       const data = await response.json();
