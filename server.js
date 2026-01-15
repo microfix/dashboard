@@ -2,23 +2,30 @@ import express from 'express';
 import pg from 'pg';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
-const app = express();
-const port = process.env.PORT || 3001;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-app.use(cors());
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.use(cors({
+    origin: 'https://app.microfix.dk'
+}));
 app.use(express.json());
+
+// Serve static files from the React app
+app.use(express.static(path.join(__dirname, 'dist')));
 
 const { Pool } = pg;
 
 const pool = new Pool({
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
-    password: process.env.DB_PASSWORD,
-    port: parseInt(process.env.DB_PORT || '5432'),
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
 });
 
 app.post('/api/setup-db', async (req, res) => {
@@ -44,6 +51,12 @@ app.post('/api/setup-db', async (req, res) => {
         console.error('Error executing query', err);
         res.status(500).json({ success: false, message: 'Database error: ' + err.message });
     }
+});
+
+// The "catchall" handler: for any request that doesn't
+// match one above, send back React's index.html file.
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 app.listen(port, () => {
