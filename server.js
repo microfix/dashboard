@@ -30,6 +30,12 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Debug logging to see exactly what the server receives
+app.use((req, res, next) => {
+    console.log(`[DEBUG] Request: ${req.method} ${req.url} | Path: ${req.path}`);
+    next();
+});
+
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'dist')));
 
