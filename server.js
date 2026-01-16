@@ -13,8 +13,20 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Allow both production domain and local dev
+const allowedOrigins = ['https://app.microfix.dk', 'http://localhost:5173', 'http://localhost:4173'];
 app.use(cors({
-    origin: 'https://app.microfix.dk'
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+            // Optionally allow all for debugging if strictness causes issues:
+            // return callback(null, true);
+            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            return callback(new Error(msg), false);
+        }
+        return callback(null, true);
+    }
 }));
 app.use(express.json());
 
@@ -23,10 +35,32 @@ app.use(express.static(path.join(__dirname, 'dist')));
 
 const { Pool } = pg;
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
-});
+// Robust SSL handling:
+// 1. If 'sslmode=disable' is in string, force SSL off.
+// 2. If 'localhost' is in string, force SSL off.
+// 3. Otherwise, force SSL with rejectUnauthorized: false (common for cloud DBs).
+const getSSLConfig = (str) => {
+    if (!str) return false;
+    if (str.includes('sslmode=disable')) return false;
+    if (str.includes('localhost')) return false;
+    return { rejectUnauthorized: false };
+};
+
+const poolConfig = process.env.DATABASE_URL
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        ssl: getSSLConfig(process.env.DATABASE_URL)
+    }
+    : {
+        user: process.env.DB_USER,
+        host: process.env.DB_HOST,
+        database: process.env.DB_NAME,
+        password: process.env.DB_PASSWORD,
+        port: process.env.DB_PORT,
+        ssl: (process.env.DB_HOST === 'localhost' || !process.env.DB_HOST) ? false : { rejectUnauthorized: false }
+    };
+
+const pool = new Pool(poolConfig);
 
 app.post('/api/setup-db', async (req, res) => {
     try {
