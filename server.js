@@ -62,6 +62,11 @@ const poolConfig = process.env.DATABASE_URL
 
 const pool = new Pool(poolConfig);
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 app.post('/api/setup-db', async (req, res) => {
     try {
         const client = await pool.connect();
