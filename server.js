@@ -105,7 +105,8 @@ app.post('/api/setup-db', async (req, res) => {
 
 // The "catchall" handler: for any request that doesn't
 // match one above, send back React's index.html file.
-app.get('*', (req, res) => {
+// NOTE: We use /.*/ regex because Express 5's path-to-regexp no longer supports '*' as a wildcard.
+app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
