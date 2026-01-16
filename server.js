@@ -172,12 +172,9 @@ app.delete('/api/links/:id', async (req, res) => {
 
 // The "catchall" handler: for any request that doesn't
 // match one above, send back React's index.html file.
-// NOTE: We use /.*/ regex because Express 5's path-to-regexp no longer supports '*' as a wildcard.
-// CRITICAL: We MUST explicitly ignore sub-apps (like /pdffilesize) to prevent hijacking their requests.
-app.get(/.*/, (req, res, next) => {
-    if (req.path.startsWith('/pdffilesize') || req.path.startsWith('/api')) {
-        return next();
-    }
+// NOTE: We use a Negative Lookahead Regex to explicitly exclude /pdffilesize and /api
+// This ensures that requests to those paths are NOT handled by this route.
+app.get(/^(?!\/pdffilesize|\/api).*$/, (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
