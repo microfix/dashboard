@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
 
 // Allow both production domain and local dev
 const allowedOrigins = ['https://app.microfix.dk', 'http://localhost:5173', 'http://localhost:4173'];
