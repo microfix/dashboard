@@ -16,13 +16,23 @@ function App() {
       const response = await fetch('/api/setup-db', {
         method: 'POST',
       });
-      const data = await response.json();
-      if (data.success) {
-        setSetupStatus({ type: 'success', message: 'Databasen er klar!' });
+
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        const data = await response.json();
+        if (data.success) {
+          setSetupStatus({ type: 'success', message: 'Databasen er klar!' });
+        } else {
+          setSetupStatus({ type: 'error', message: 'Fejl: ' + data.message });
+        }
       } else {
-        setSetupStatus({ type: 'error', message: 'Fejl: ' + data.message });
+        // Handle non-JSON response (e.g. 502 Bad Gateway HTML)
+        const text = await response.text();
+        console.error('Non-JSON response from server:', text);
+        setSetupStatus({ type: 'error', message: `Server fejl (${response.status}). Se konsol.` });
       }
     } catch (err) {
+      console.error('Setup DB Error:', err);
       setSetupStatus({ type: 'error', message: 'Kunne ikke forbinde til serveren.' });
     }
     setTimeout(() => setSetupStatus({ type: null, message: '' }), 5000);

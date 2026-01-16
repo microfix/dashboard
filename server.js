@@ -35,15 +35,20 @@ app.use(express.static(path.join(__dirname, 'dist')));
 
 const { Pool } = pg;
 
-// Robust SSL handling:
-// 1. If 'sslmode=disable' is in string, force SSL off.
-// 2. If 'localhost' is in string, force SSL off.
-// 3. Otherwise, force SSL with rejectUnauthorized: false (common for cloud DBs).
+// SSL configuration:
+// Only use SSL if explicitly requested via DATABASE_URL query param (sslmode) or DB_SSL env var.
+// We do not force it for non-localhost anymore, as internal container networks (like Coolify) often don't use SSL.
 const getSSLConfig = (str) => {
-    if (!str) return false;
-    if (str.includes('sslmode=disable')) return false;
-    if (str.includes('localhost')) return false;
-    return { rejectUnauthorized: false };
+    if (process.env.DB_SSL === 'true') return { rejectUnauthorized: false };
+
+    // If the URL string explicitly mentions sslmode, we might need to handle it, 
+    // but 'pg' parses connectionString automatically. 
+    // However, for self-signed certs with sslmode=require, we might need rejectUnauthorized: false.
+    if (str && (str.includes('sslmode=require') || str.includes('sslmode=verify-full'))) {
+        return { rejectUnauthorized: false };
+    }
+
+    return false;
 };
 
 const poolConfig = process.env.DATABASE_URL
@@ -59,6 +64,12 @@ const poolConfig = process.env.DATABASE_URL
         port: process.env.DB_PORT,
         ssl: (process.env.DB_HOST === 'localhost' || !process.env.DB_HOST) ? false : { rejectUnauthorized: false }
     };
+
+console.log('Database Configuration:', {
+    ...poolConfig,
+    password: poolConfig.password ? '****' : undefined,
+    connectionString: poolConfig.connectionString ? 'Has Connection String' : undefined
+});
 
 const pool = new Pool(poolConfig);
 
