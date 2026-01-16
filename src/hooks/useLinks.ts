@@ -12,72 +12,76 @@ export interface LinkItem {
 
 export const useLinks = () => {
     const [links, setLinks] = useState<LinkItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    // Fetch links from the API
+    const fetchLinks = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch('/api/links');
+            if (response.ok) {
+                const data = await response.json();
+                setLinks(data);
+            } else {
+                console.error('Failed to fetch links');
+                // Optional: Fallback to empty or keep loading false
+            }
+        } catch (err) {
+            console.error('Error fetching links:', err);
+            setError('Could not load links');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const savedLinks = localStorage.getItem('app-dashboard-links');
-        if (savedLinks) {
-            try {
-                setLinks(JSON.parse(savedLinks));
-            } catch (e) {
-                console.error('Failed to parse links from localStorage', e);
-            }
-        } else {
-            // Seed data
-            const initialLinks: LinkItem[] = [
-                {
-                    id: '1',
-                    title: 'NEON RUNNER',
-                    url: 'https://example.com/neon',
-                    description: 'A high-speed synthwave arcade game built with Three.js.',
-                    imageUrl: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800&auto=format&fit=crop&q=60',
-                    tags: ['Game', '3D'],
-                    createdAt: Date.now()
-                },
-                {
-                    id: '2',
-                    title: 'VIBE CALENDAR',
-                    url: 'https://example.com/calendar',
-                    description: 'A minimalist productivity tool focused on mood and focus.',
-                    imageUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=60',
-                    tags: ['Utility', 'Minimalist'],
-                    createdAt: Date.now() - 1000
-                },
-                {
-                    id: '3',
-                    title: 'AUDIO VISUALIZER',
-                    url: 'https://example.com/audio',
-                    description: 'Real-time frequency analysis with dynamic particle systems.',
-                    imageUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&auto=format&fit=crop&q=60',
-                    tags: ['Audio', 'Creative'],
-                    createdAt: Date.now() - 2000
-                }
-            ];
-            setLinks(initialLinks);
-            localStorage.setItem('app-dashboard-links', JSON.stringify(initialLinks));
-        }
+        fetchLinks();
     }, []);
 
-    const saveLinks = (newLinks: LinkItem[]) => {
-        setLinks(newLinks);
-        localStorage.setItem('app-dashboard-links', JSON.stringify(newLinks));
+    const addLink = async (link: Omit<LinkItem, 'id' | 'createdAt'>) => {
+        const linkData = { ...link, createdAt: Date.now() };
+        try {
+            const response = await fetch('/api/links', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(linkData)
+            });
+            if (response.ok) {
+                const newLink = await response.json();
+                setLinks(prev => [newLink, ...prev]);
+            }
+        } catch (err) {
+            console.error('Error adding link:', err);
+        }
     };
 
-    const addLink = (link: Omit<LinkItem, 'id' | 'createdAt'>) => {
-        const newLink: LinkItem = {
-            ...link,
-            id: crypto.randomUUID(),
-            createdAt: Date.now(),
-        };
-        saveLinks([newLink, ...links]);
+    const deleteLink = async (id: string) => {
+        try {
+            const response = await fetch(`/api/links/${id}`, { method: 'DELETE' });
+            if (response.ok) {
+                setLinks(prev => prev.filter(link => link.id !== id));
+            }
+        } catch (err) {
+            console.error('Error deleting link:', err);
+        }
     };
 
-    const deleteLink = (id: string) => {
-        saveLinks(links.filter((link) => link.id !== id));
+    const updateLink = async (id: string, updatedLink: Partial<Omit<LinkItem, 'id' | 'createdAt'>>) => {
+        try {
+            const response = await fetch(`/api/links/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedLink)
+            });
+            if (response.ok) {
+                const savedLink = await response.json();
+                setLinks(prev => prev.map(link => link.id === id ? savedLink : link));
+            }
+        } catch (err) {
+            console.error('Error updating link:', err);
+        }
     };
 
-    const updateLink = (id: string, updatedLink: Partial<Omit<LinkItem, 'id' | 'createdAt'>>) => {
-        saveLinks(links.map((link) => link.id === id ? { ...link, ...updatedLink } : link));
-    };
-
-    return { links, addLink, deleteLink, updateLink };
+    return { links, loading, error, addLink, deleteLink, updateLink };
 };

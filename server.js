@@ -103,6 +103,73 @@ app.post('/api/setup-db', async (req, res) => {
     }
 });
 
+// API Endpoints for Links
+
+// GET all links
+app.get('/api/links', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM links ORDER BY createdAt DESC');
+        // Convert createdAt from string/bigint to number for frontend compatibility if needed
+        const links = result.rows.map(row => ({
+            ...row,
+            createdAt: Number(row.createdat) // PostgreSQL might return bigint as string
+        }));
+        res.json(links);
+    } catch (err) {
+        console.error('Error fetching links:', err);
+        res.status(500).json({ error: 'Failed to fetch links' });
+    }
+});
+
+// CREATE a new link
+app.post('/api/links', async (req, res) => {
+    const { title, url, description, imageUrl, tags, createdAt } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO links (title, url, description, imageUrl, tags, createdAt) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [title, url, description, imageUrl, tags, createdAt]
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Error creating link:', err);
+        res.status(500).json({ error: 'Failed to create link' });
+    }
+});
+
+// UPDATE a link
+app.put('/api/links/:id', async (req, res) => {
+    const { id } = req.params;
+    const { title, url, description, imageUrl, tags } = req.body;
+    try {
+        const result = await pool.query(
+            'UPDATE links SET title = COALESCE($1, title), url = COALESCE($2, url), description = COALESCE($3, description), imageUrl = COALESCE($4, imageUrl), tags = COALESCE($5, tags) WHERE id = $6 RETURNING *',
+            [title, url, description, imageUrl, tags, id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Link not found' });
+        }
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Error updating link:', err);
+        res.status(500).json({ error: 'Failed to update link' });
+    }
+});
+
+// DELETE a link
+app.delete('/api/links/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await pool.query('DELETE FROM links WHERE id = $1 RETURNING *', [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Link not found' });
+        }
+        res.json({ success: true, deletedId: id });
+    } catch (err) {
+        console.error('Error deleting link:', err);
+        res.status(500).json({ error: 'Failed to delete link' });
+    }
+});
+
 // The "catchall" handler: for any request that doesn't
 // match one above, send back React's index.html file.
 // NOTE: We use /.*/ regex because Express 5's path-to-regexp no longer supports '*' as a wildcard.
