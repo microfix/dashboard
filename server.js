@@ -19,24 +19,8 @@ const allowedOrigins = ['http://localhost:5173', 'http://localhost:4173'];
 
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-
-        // Allow localhost
-        if (allowedOrigins.indexOf(origin) !== -1) {
-            return callback(null, true);
-        }
-
-        // Allow any subdomain of microfix.dk (e.g. app.microfix.dk, dashboard.microfix.dk)
-        // Also allow the new domain structure naturally.
-        if (origin.endsWith('microfix.dk')) {
-            return callback(null, true);
-        }
-
-        // Use this stricter log for debugging if needed, but for now we are permissive with the domain
-        console.log('[CORS] Blocked origin:', origin);
-        const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-        return callback(new Error(msg), false);
+        // Allow all origins (per user request for new domains)
+        return callback(null, true);
     }
 }));
 app.use(express.json());
